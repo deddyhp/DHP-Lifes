@@ -13,82 +13,79 @@ CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 @st.cache_data(ttl=60)
 def load_data():
     df = pd.read_csv(CSV_URL)
-    df["Tanggal"] = pd.to_datetime(df["Tanggal"])
+    df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
     df["Chol"] = pd.to_numeric(df["Chol"], errors="coerce")
     df["UA"] = pd.to_numeric(df["UA"], errors="coerce")
     df["Glucose"] = pd.to_numeric(df["Glucose"], errors="coerce")
-    return df.sort_values("Tanggal")
+    df = df.dropna(subset=["Nama", "Tanggal"])
+    return df.sort_values(["Nama", "Tanggal"])
 
 df = load_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("Dashboard keluarga untuk kesehatan, kopi, mobilitas, dan Islamic Things")
+st.caption("Health database membaca langsung dari Google Sheet")
 
 menu = st.sidebar.radio(
     "Menu",
     ["🏠 Home", "❤️ Health", "☕ Coffee Lab", "🚗 Mobility", "🕌 Islamic Things"]
 )
 
+def latest_card(data, nama):
+    st.subheader(nama)
+    if data.empty:
+        st.warning("Belum ada data.")
+        return
+    latest = data.iloc[-1]
+    st.metric("Chol terakhir", int(latest["Chol"]))
+    st.metric("UA terakhir", latest["UA"])
+    st.metric("Glucose terakhir", int(latest["Glucose"]))
+
 if menu == "🏠 Home":
     st.header("Selamat pagi, Deddy & Family")
-    st.success("DHP-Lifes V3 aktif — Health database sudah membaca Google Sheet 🚀")
+    st.success("DHP-Lifes V4 stabil aktif 🚀")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("👤 Deddy")
-        deddy = df[df["Nama"] == "Deddy"]
-        if not deddy.empty:
-            latest = deddy.iloc[-1]
-            st.metric("Chol terakhir", int(latest["Chol"]))
-            st.metric("UA terakhir", latest["UA"])
-            st.metric("Glucose terakhir", int(latest["Glucose"]))
-
-    with col2:
-        st.subheader("👩 Istri")
-        istri = df[df["Nama"] == "Istri"]
-        if not istri.empty:
-            latest = istri.iloc[-1]
-            st.metric("Chol terakhir", int(latest["Chol"]))
-            st.metric("UA terakhir", latest["UA"])
-            st.metric("Glucose terakhir", int(latest["Glucose"]))
+    c1, c2 = st.columns(2)
+    with c1:
+        latest_card(df[df["Nama"] == "Deddy"], "👤 Deddy")
+    with c2:
+        latest_card(df[df["Nama"] == "Istri"], "👩 Istri")
 
 if menu == "❤️ Health":
     st.header("❤️ Health Dashboard")
 
-    nama = st.selectbox("Pilih profil", sorted(df["Nama"].unique()))
+    nama = st.selectbox("Pilih profil", sorted(df["Nama"].dropna().unique()))
     data = df[df["Nama"] == nama].copy()
 
-    st.subheader(f"Ringkasan: {nama}")
-
     latest = data.iloc[-1]
-    c1, c2, c3 = st.columns(3)
 
-    with c1:
-        st.metric("Chol terakhir", int(latest["Chol"]))
-    with c2:
-        st.metric("UA terakhir", latest["UA"])
-    with c3:
-        st.metric("Glucose terakhir", int(latest["Glucose"]))
+    st.subheader(f"Ringkasan: {nama}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Chol terakhir", int(latest["Chol"]))
+    c2.metric("UA terakhir", latest["UA"])
+    c3.metric("Glucose terakhir", int(latest["Glucose"]))
 
     st.divider()
 
-    st.subheader("📈 Grafik Tren")
+    st.subheader("📈 Trend Kolesterol")
+    chol_chart = data[["Tanggal", "Chol"]].set_index("Tanggal")
+    st.line_chart(chol_chart, height=260)
 
-    chart_data = data.set_index("Tanggal")[["Chol", "UA", "Glucose"]]
+    st.subheader("📈 Trend Asam Urat")
+    ua_chart = data[["Tanggal", "UA"]].set_index("Tanggal")
+    st.line_chart(ua_chart, height=260)
 
-    st.line_chart(chart_data["Chol"])
-    st.caption("Trend Kolesterol")
-
-    st.line_chart(chart_data["UA"])
-    st.caption("Trend Asam Urat")
-
-    st.line_chart(chart_data["Glucose"])
-    st.caption("Trend Glucose")
+    st.subheader("📈 Trend Glucose")
+    glucose_chart = data[["Tanggal", "Glucose"]].set_index("Tanggal")
+    st.line_chart(glucose_chart, height=260)
 
     st.divider()
 
     st.subheader("📋 Data Riwayat")
-    st.dataframe(data, use_container_width=True)
+    st.dataframe(
+        data.sort_values("Tanggal", ascending=False),
+        use_container_width=True,
+        hide_index=True
+    )
 
 if menu == "☕ Coffee Lab":
     st.header("☕ Coffee Lab")
