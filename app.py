@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="DHP-Lifes",
@@ -20,6 +21,17 @@ def load_data():
     df = df.dropna(subset=["Nama", "Tanggal"])
     return df.sort_values(["Nama", "Tanggal"])
 
+def plot_metric(data, metric, title):
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(data["Tanggal"], data[metric], marker="o")
+    ax.set_title(title)
+    ax.set_xlabel("Tanggal")
+    ax.set_ylabel(metric)
+    ax.grid(True, alpha=0.3)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    plt.close(fig)
+
 df = load_data()
 
 st.title("❤️ DHP-Lifes")
@@ -30,25 +42,27 @@ menu = st.sidebar.radio(
     ["🏠 Home", "❤️ Health", "☕ Coffee Lab", "🚗 Mobility", "🕌 Islamic Things"]
 )
 
-def latest_card(data, nama):
-    st.subheader(nama)
-    if data.empty:
-        st.warning("Belum ada data.")
-        return
-    latest = data.iloc[-1]
-    st.metric("Chol terakhir", int(latest["Chol"]))
-    st.metric("UA terakhir", latest["UA"])
-    st.metric("Glucose terakhir", int(latest["Glucose"]))
-
 if menu == "🏠 Home":
     st.header("Selamat pagi, Deddy & Family")
-    st.success("DHP-Lifes V4 stabil aktif 🚀")
+    st.success("DHP-Lifes V5 Matplotlib aktif 🚀")
 
     c1, c2 = st.columns(2)
+
     with c1:
-        latest_card(df[df["Nama"] == "Deddy"], "👤 Deddy")
+        st.subheader("👤 Deddy")
+        deddy = df[df["Nama"] == "Deddy"]
+        latest = deddy.iloc[-1]
+        st.metric("Chol terakhir", int(latest["Chol"]))
+        st.metric("UA terakhir", latest["UA"])
+        st.metric("Glucose terakhir", int(latest["Glucose"]))
+
     with c2:
-        latest_card(df[df["Nama"] == "Istri"], "👩 Istri")
+        st.subheader("👩 Istri")
+        istri = df[df["Nama"] == "Istri"]
+        latest = istri.iloc[-1]
+        st.metric("Chol terakhir", int(latest["Chol"]))
+        st.metric("UA terakhir", latest["UA"])
+        st.metric("Glucose terakhir", int(latest["Glucose"]))
 
 if menu == "❤️ Health":
     st.header("❤️ Health Dashboard")
@@ -66,17 +80,10 @@ if menu == "❤️ Health":
 
     st.divider()
 
-    st.subheader("📈 Trend Kolesterol")
-    chol_chart = data[["Tanggal", "Chol"]].set_index("Tanggal")
-    st.line_chart(chol_chart, height=260)
-
-    st.subheader("📈 Trend Asam Urat")
-    ua_chart = data[["Tanggal", "UA"]].set_index("Tanggal")
-    st.line_chart(ua_chart, height=260)
-
-    st.subheader("📈 Trend Glucose")
-    glucose_chart = data[["Tanggal", "Glucose"]].set_index("Tanggal")
-    st.line_chart(glucose_chart, height=260)
+    st.subheader("📈 Grafik Tren")
+    plot_metric(data, "Chol", "Trend Kolesterol")
+    plot_metric(data, "UA", "Trend Asam Urat")
+    plot_metric(data, "Glucose", "Trend Glucose")
 
     st.divider()
 
