@@ -6,7 +6,7 @@ from datetime import date
 
 st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
 
-APP_VERSION = "V11 FINAL"
+APP_VERSION = "V11.1 BETA"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG9Wf3MFQQegujmubT2NW_U53DdbuqPU22UrI43FVPl5FE8X-L_D9D8fuQ1k7pSITxow/exec"
@@ -68,16 +68,14 @@ def status_ua(v, nama):
         return "🟡 Waspada"
     return "🔴 Tinggi"
 
-def delta_text(data, col):
+def delta_value(data, col):
     clean = data.dropna(subset=[col])
     if len(clean) < 2:
         return None
     diff = clean.iloc[-1][col] - clean.iloc[-2][col]
-    if diff > 0:
-        return f"Naik {diff:.1f}"
-    if diff < 0:
-        return f"Turun {abs(diff):.1f}"
-    return "Tetap"
+    if diff == 0:
+        return "0.0"
+    return f"{diff:+.1f}"
 
 def save_to_google_sheet(nama, tanggal, chol, ua, glucose):
     payload = {
@@ -139,15 +137,30 @@ def metric_cards(data, nama):
     c1, c2, c3 = st.columns(3)
 
     with c1:
-        st.metric("Chol", int(latest["Chol"]), delta_text(data, "Chol"))
+        st.metric(
+            "Chol",
+            int(latest["Chol"]),
+            delta_value(data, "Chol"),
+            delta_color="inverse",
+        )
         st.caption(status_chol(latest["Chol"]))
 
     with c2:
-        st.metric("UA", latest["UA"], delta_text(data, "UA"))
+        st.metric(
+            "UA",
+            latest["UA"],
+            delta_value(data, "UA"),
+            delta_color="inverse",
+        )
         st.caption(status_ua(latest["UA"], nama))
 
     with c3:
-        st.metric("Glucose", int(latest["Glucose"]), delta_text(data, "Glucose"))
+        st.metric(
+            "Glucose",
+            int(latest["Glucose"]),
+            delta_value(data, "Glucose"),
+            delta_color="inverse",
+        )
         st.caption(status_glucose(latest["Glucose"]))
 
 def health_insight(data, nama):
@@ -165,14 +178,15 @@ def health_insight(data, nama):
             "\n\nPerubahan dari pemeriksaan sebelumnya: "
             f"Chol {latest['Chol'] - prev['Chol']:+.1f}, "
             f"UA {latest['UA'] - prev['UA']:+.1f}, "
-            f"Glucose {latest['Glucose'] - prev['Glucose']:+.1f}."
+            f"Glucose {latest['Glucose'] - prev['Glucose']:+.1f}. "
+            "Untuk parameter ini, angka turun biasanya lebih baik selama tidak terlalu rendah."
         )
     return text
 
 df = load_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("V11 FINAL — Health database + direct Google Sheet auto-save")
+st.caption("V11.1 BETA — Health database + direct Google Sheet auto-save")
 
 menu = st.sidebar.radio(
     "Menu",
@@ -184,7 +198,8 @@ if st.sidebar.button("🔄 Refresh data"):
 
 if menu == "🏠 Home":
     st.header("Selamat datang, Deddy & Family")
-    st.success("DHP-Lifes V11 FINAL aktif — auto-save ready 🚀")
+    st.success("DHP-Lifes V11.1 BETA aktif — auto-save ready 🚀")
+    st.caption("Delta: ↑ berarti angka naik, ↓ berarti angka turun. Untuk kesehatan, warna dibalik: turun = hijau, naik = merah.")
 
     col_left, col_right = st.columns(2)
     for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
@@ -214,6 +229,7 @@ elif menu == "❤️ Health":
 
     st.subheader(f"Ringkasan: {nama}")
     metric_cards(data, nama)
+    st.caption("Delta: ↑ angka naik, ↓ angka turun. Warna hijau berarti arah membaik.")
 
     st.divider()
     st.subheader("📌 Insight Singkat")
@@ -290,6 +306,11 @@ elif menu == "🎯 Target":
 - Glucose: 🔵 <70 Very Low | 🟢 70–99 Ideal | 🟡 100–125 Waspada | 🔴 ≥126 Tinggi
 - UA Deddy: 🟢 ≤7.5 Normal | 🟡 7.6–8.0 Waspada | 🔴 >8.0 Tinggi
 - UA Istri: 🟢 ≤6.0 Normal | 🟡 6.1–7.0 Waspada | 🔴 >7.0 Tinggi
+
+**Delta color beta:**
+- Angka naik ditampilkan merah untuk Chol, UA, dan Glucose.
+- Angka turun ditampilkan hijau.
+- Panah tetap menunjukkan arah data sebenarnya.
         """
     )
 
