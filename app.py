@@ -1,11 +1,25 @@
 import streamlit as st
-from datetime import date
+import pandas as pd
 
 st.set_page_config(
     page_title="DHP-Lifes",
     page_icon="❤️",
     layout="wide"
 )
+
+SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+
+@st.cache_data(ttl=60)
+def load_data():
+    df = pd.read_csv(CSV_URL)
+    df["Tanggal"] = pd.to_datetime(df["Tanggal"])
+    df["Chol"] = pd.to_numeric(df["Chol"], errors="coerce")
+    df["UA"] = pd.to_numeric(df["UA"], errors="coerce")
+    df["Glucose"] = pd.to_numeric(df["Glucose"], errors="coerce")
+    return df.sort_values("Tanggal")
+
+df = load_data()
 
 st.title("❤️ DHP-Lifes")
 st.caption("Dashboard keluarga untuk kesehatan, kopi, mobilitas, dan Islamic Things")
@@ -17,34 +31,64 @@ menu = st.sidebar.radio(
 
 if menu == "🏠 Home":
     st.header("Selamat pagi, Deddy & Family")
-    st.success("DHP-Lifes V2 mulai dibangun 🚀")
+    st.success("DHP-Lifes V3 aktif — Health database sudah membaca Google Sheet 🚀")
 
-    c1, c2 = st.columns(2)
-    with c1:
+    col1, col2 = st.columns(2)
+    with col1:
         st.subheader("👤 Deddy")
-        st.write("Health dashboard siap dikembangkan.")
-    with c2:
+        deddy = df[df["Nama"] == "Deddy"]
+        if not deddy.empty:
+            latest = deddy.iloc[-1]
+            st.metric("Chol terakhir", int(latest["Chol"]))
+            st.metric("UA terakhir", latest["UA"])
+            st.metric("Glucose terakhir", int(latest["Glucose"]))
+
+    with col2:
         st.subheader("👩 Istri")
-        st.write("Data kesehatan akan dibuat terpisah.")
+        istri = df[df["Nama"] == "Istri"]
+        if not istri.empty:
+            latest = istri.iloc[-1]
+            st.metric("Chol terakhir", int(latest["Chol"]))
+            st.metric("UA terakhir", latest["UA"])
+            st.metric("Glucose terakhir", int(latest["Glucose"]))
 
 if menu == "❤️ Health":
     st.header("❤️ Health Dashboard")
 
-    user = st.selectbox("Pilih profil", ["Deddy", "Istri"])
-    st.subheader(f"Input data kesehatan: {user}")
+    nama = st.selectbox("Pilih profil", sorted(df["Nama"].unique()))
+    data = df[df["Nama"] == nama].copy()
 
-    tanggal = st.date_input("Tanggal", date.today())
-    gula = st.number_input("Gula darah", min_value=0)
-    sistole = st.number_input("Sistole", min_value=0)
-    diastole = st.number_input("Diastole", min_value=0)
-    kolesterol = st.number_input("Kolesterol", min_value=0)
-    asam_urat = st.number_input("Asam urat", min_value=0.0, step=0.1)
-    berat = st.number_input("Berat badan", min_value=0.0, step=0.1)
-    catatan = st.text_area("Catatan")
+    st.subheader(f"Ringkasan: {nama}")
 
-    if st.button("Simpan sementara"):
-        st.success(f"Data {user} tanggal {tanggal} berhasil diinput sementara.")
-        st.info("Tahap berikutnya: data ini akan disimpan ke Google Sheets.")
+    latest = data.iloc[-1]
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.metric("Chol terakhir", int(latest["Chol"]))
+    with c2:
+        st.metric("UA terakhir", latest["UA"])
+    with c3:
+        st.metric("Glucose terakhir", int(latest["Glucose"]))
+
+    st.divider()
+
+    st.subheader("📈 Grafik Tren")
+
+    chart_data = data.set_index("Tanggal")[["Chol", "UA", "Glucose"]]
+
+    st.line_chart(chart_data["Chol"])
+    st.caption("Trend Kolesterol")
+
+    st.line_chart(chart_data["UA"])
+    st.caption("Trend Asam Urat")
+
+    st.line_chart(chart_data["Glucose"])
+    st.caption("Trend Glucose")
+
+    st.divider()
+
+    st.subheader("📋 Data Riwayat")
+    st.dataframe(data, use_container_width=True)
 
 if menu == "☕ Coffee Lab":
     st.header("☕ Coffee Lab")
