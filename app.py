@@ -3,7 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import date
 
-st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
+st.set_page_config(
+    page_title="DHP-Lifes",
+    page_icon="❤️",
+    layout="wide"
+)
 
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
@@ -11,115 +15,224 @@ CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 @st.cache_data(ttl=60)
 def load_data():
     df = pd.read_csv(CSV_URL)
+    required_cols = ["Nama", "Tanggal", "Chol", "UA", "Glucose"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        st.error(f"Kolom hilang di Google Sheet: {missing}")
+        st.stop()
+
+    df["Nama"] = df["Nama"].astype(str).str.strip()
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
     for col in ["Chol", "UA", "Glucose"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"])
+
+    return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
+
+df = load_data()
 
 def status_chol(v):
-    return "🟢 Normal" if v < 200 else "🟡 Waspada" if v < 240 else "🔴 Tinggi"
-
-def status_ua(v):
-    return "🟢 Normal" if v <= 7.5 else "🔴 Tinggi"
+    if pd.isna(v):
+        return "⚪ No data"
+    if v < 200:
+        return "🟢 Normal"
+    if v < 240:
+        return "🟡 Waspada"
+    return "🔴 Tinggi"
 
 def status_glucose(v):
+    if pd.isna(v):
+        return "⚪ No data"
     if v < 70:
-        return "🔵 Low"
+        return "🔵 Very Low"
     if v < 100:
-        return "🟢 Normal"
+        return "🟢 Ideal"
     if v < 126:
         return "🟡 Waspada"
     return "🔴 Tinggi"
 
+def status_ua(v, nama):
+    if pd.isna(v):
+        return "⚪ No data"
+    if nama == "Istri":
+        if v <= 6.0:
+            return "🟢 Normal"
+        if v <= 7.0:
+            return "🟡 Waspada"
+        return "🔴 Tinggi"
+    if v <= 7.5:
+        return "🟢 Normal"
+    if v <= 8.0:
+        return "🟡 Waspada"
+    return "🔴 Tinggi"
+
 def delta_text(data, col):
-    if len(data) < 2:
-        return "Belum ada pembanding"
-    diff = data.iloc[-1][col] - data.iloc[-2][col]
-    return f"Naik {diff:.1f}" if diff > 0 else f"Turun {abs(diff):.1f}" if diff < 0 else "Tetap"
+    clean = data.dropna(subset=[col])
+    if len(clean) < 2:
+        return None
+    diff = clean.iloc[-1][col] - clean.iloc[-2][col]
+    if diff > 0:
+        return f"Naik {diff:.1f}"
+    if diff < 0:
+        return f"Turun {abs(diff):.1f}"
+    return "Tetap"
+
+def latest_row(data):
+    if data.empty:
+        return None
+    return data.iloc[-1]
 
 def plot_metric(data, metric, title):
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(data["Tanggal"], data[metric], marker="o", linewidth=2)
+    chart = data.dropna(subset=[metric]).copy()
+    if chart.empty:
+        st.warning(f"Belum ada data untuk {metric}.")
+        return
+
+    fig, ax = plt.subplots(figsize=(11, 4.5))
+    ax.plot(chart["Tanggal"], chart[metric], marker="o", linewidth=2)
     ax.set_title(title)
     ax.set_xlabel("Tanggal")
     ax.set_ylabel(metric)
     ax.grid(True, alpha=0.3)
+
+    if metric == "Chol":
+        ax.axhline(200, linestyle="--", alpha=0.5)
+    elif metric == "Glucose":
+        ax.axhline(70, linestyle="--", alpha=0.4)
+        ax.axhline(100, linestyle="--", alpha=0.5)
+        ax.axhline(126, linestyle="--", alpha=0.5)
+    elif metric == "UA":
+        ax.axhline(7.5, linestyle="--", alpha=0.5)
+
     fig.autofmt_xdate()
     st.pyplot(fig)
     plt.close(fig)
 
-df = load_data()
+def person_icon(nama):
+    return "👤" if nama == "Deddy" else "👩"
+
+def metric_cards(data, nama):
+    latest = latest_row(data)
+    if latest is None:
+        st.warning(f"Belum ada data untuk {nama}.")
+        return
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Chol", int(latest["Chol"]), delta_text(data, "Chol"))
+        st.caption(status_chol(latest["Chol"]))
+    with c2:
+        st.metric("UA", latest["UA"], delta_text(data, "UA"))
+        st.caption(status_ua(latest["UA"], nama))
+    with c3:
+        st.metric("Glucose", int(latest["Glucose"]), delta_text(data, "Glucose"))
+        st.caption(status_glucose(latest["Glucose"]))
+
+def health_insight(data, nama):
+    latest = latest_row(data)
+    if latest is None:
+        return "Belum ada data."
+
+    text = (
+        f"Data terakhir {nama} tanggal {latest['Tanggal'].date()}: "
+        f"Chol {int(latest['Chol'])} ({status_chol(latest['Chol'])}), "
+        f"UA {latest['UA']} ({status_ua(latest['UA'], nama)}), "
+        f"Glucose {int(latest['Glucose'])} ({status_glucose(latest['Glucose'])})."
+    )
+
+    if len(data) >= 2:
+        prev = data.iloc[-2]
+        text += (
+            "\n\nPerubahan dari pemeriksaan sebelumnya: "
+            f"Chol {latest['Chol'] - prev['Chol']:+.1f}, "
+            f"UA {latest['UA'] - prev['UA']:+.1f}, "
+            f"Glucose {latest['Glucose'] - prev['Glucose']:+.1f}."
+        )
+
+    return text
 
 st.title("❤️ DHP-Lifes")
-st.caption("Health database membaca langsung dari Google Sheet")
+st.caption("V8 Health Dashboard — Google Sheet as database, Streamlit as dashboard")
 
 menu = st.sidebar.radio(
     "Menu",
-    ["🏠 Home", "❤️ Health", "➕ Tambah Data", "☕ Coffee Lab", "🚗 Mobility", "🕌 Islamic Things"]
+    [
+        "🏠 Home",
+        "❤️ Health",
+        "➕ Tambah Data",
+        "☕ Coffee Lab",
+        "🚗 Mobility",
+        "🕌 Islamic Things",
+    ],
 )
 
 if menu == "🏠 Home":
-    st.header("Selamat pagi, Deddy & Family")
-    st.success("DHP-Lifes V7 aktif 🚀")
+    st.header("Selamat datang, Deddy & Family")
+    st.success("DHP-Lifes V8 aktif 🚀")
 
-    c1, c2 = st.columns(2)
-    for col, nama in zip([c1, c2], ["Deddy", "Istri"]):
-        with col:
-            data = df[df["Nama"] == nama]
-            latest = data.iloc[-1]
-            st.subheader(f"{'👤' if nama == 'Deddy' else '👩'} {nama}")
-            st.metric("Chol", int(latest["Chol"]), delta_text(data, "Chol"))
-            st.write(status_chol(latest["Chol"]))
-            st.metric("UA", latest["UA"], delta_text(data, "UA"))
-            st.write(status_ua(latest["UA"]))
-            st.metric("Glucose", int(latest["Glucose"]), delta_text(data, "Glucose"))
-            st.write(status_glucose(latest["Glucose"]))
+    col_left, col_right = st.columns(2)
+    for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
+        with container:
+            data = df[df["Nama"] == nama].copy()
+            st.subheader(f"{person_icon(nama)} {nama}")
+            metric_cards(data, nama)
 
-if menu == "❤️ Health":
+    st.divider()
+    st.subheader("📌 Database Status")
+    st.write(f"Total data terbaca: **{len(df)} baris**")
+    st.write(f"Profil: **{', '.join(sorted(df['Nama'].dropna().unique()))}**")
+
+elif menu == "❤️ Health":
     st.header("❤️ Health Dashboard")
 
     nama = st.selectbox("Pilih profil", sorted(df["Nama"].dropna().unique()))
     data = df[df["Nama"] == nama].copy()
-    latest = data.iloc[-1]
 
-    st.subheader(f"Ringkasan: {nama}")
+    if data.empty:
+        st.warning("Belum ada data.")
+        st.stop()
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Chol terakhir", int(latest["Chol"]), delta_text(data, "Chol"))
-        st.write(status_chol(latest["Chol"]))
-    with c2:
-        st.metric("UA terakhir", latest["UA"], delta_text(data, "UA"))
-        st.write(status_ua(latest["UA"]))
-    with c3:
-        st.metric("Glucose terakhir", int(latest["Glucose"]), delta_text(data, "Glucose"))
-        st.write(status_glucose(latest["Glucose"]))
+    st.subheader(f"{person_icon(nama)} Ringkasan: {nama}")
+    metric_cards(data, nama)
 
     st.divider()
-
     st.subheader("📌 Insight Singkat")
-    st.info(
-        f"Data terakhir {nama}: Chol {int(latest['Chol'])}, UA {latest['UA']}, Glucose {int(latest['Glucose'])}. "
-        f"Chol: {status_chol(latest['Chol'])} | UA: {status_ua(latest['UA'])} | Glucose: {status_glucose(latest['Glucose'])}"
-    )
+    st.info(health_insight(data, nama))
 
     st.divider()
 
-    metric = st.radio("Pilih grafik", ["Chol", "UA", "Glucose"], horizontal=True)
+    c_filter1, c_filter2 = st.columns(2)
+    with c_filter1:
+        metric = st.radio("Pilih grafik", ["Chol", "UA", "Glucose"], horizontal=True)
+    with c_filter2:
+        tampil = st.selectbox("Rentang data", ["Semua", "10 data terakhir", "20 data terakhir"])
+
+    plot_data = data.copy()
+    if tampil == "10 data terakhir":
+        plot_data = plot_data.tail(10)
+    elif tampil == "20 data terakhir":
+        plot_data = plot_data.tail(20)
+
     title_map = {
         "Chol": "Trend Kolesterol",
         "UA": "Trend Asam Urat",
-        "Glucose": "Trend Glucose"
+        "Glucose": "Trend Glucose",
     }
-    plot_metric(data, metric, title_map[metric])
+    plot_metric(plot_data, metric, title_map[metric])
 
     st.divider()
-
     st.subheader("📋 Data Riwayat")
-    st.dataframe(data.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
+    st.dataframe(
+        data.sort_values("Tanggal", ascending=False),
+        use_container_width=True,
+        hide_index=True,
+    )
 
-if menu == "➕ Tambah Data":
+elif menu == "➕ Tambah Data":
     st.header("➕ Tambah Data Pemeriksaan")
+    st.warning(
+        "Mode V8 masih membaca Google Sheet public CSV. "
+        "Form ini membuat baris siap copy ke Google Sheet, belum auto-save."
+    )
 
     nama = st.selectbox("Nama", ["Deddy", "Istri"])
     tanggal = st.date_input("Tanggal", date.today())
@@ -127,19 +240,33 @@ if menu == "➕ Tambah Data":
     ua = st.number_input("UA", min_value=0.0, step=0.1)
     glucose = st.number_input("Glucose", min_value=0, step=1)
 
+    c1, c2, c3 = st.columns(3)
+    c1.caption(status_chol(chol))
+    c2.caption(status_ua(ua, nama))
+    c3.caption(status_glucose(glucose))
+
     if st.button("Buat baris Google Sheet"):
-        row = f"{nama},{tanggal},{chol},{ua},{glucose}"
-        st.success("Copy baris ini ke Google Sheet:")
-        st.code(row)
+        row_csv = f"{nama},{tanggal},{chol},{ua},{glucose}"
+        row_tab = f"{nama}\t{tanggal}\t{chol}\t{ua}\t{glucose}"
 
-if menu == "☕ Coffee Lab":
+        st.success("Copy salah satu format di bawah ini ke Google Sheet.")
+        st.write("Format CSV:")
+        st.code(row_csv)
+        st.write("Format tab-separated, paling enak untuk paste ke Google Sheet:")
+        st.code(row_tab)
+
+    st.divider()
+    st.subheader("Header Google Sheet")
+    st.code("Nama\tTanggal\tChol\tUA\tGlucose")
+
+elif menu == "☕ Coffee Lab":
     st.header("☕ Coffee Lab")
-    st.write("Nanti berisi log roasting, cupping, dan inventory green bean.")
+    st.write("Nanti berisi log roasting, cupping, inventory green bean, dan profil Pagerwatu.")
 
-if menu == "🚗 Mobility":
+elif menu == "🚗 Mobility":
     st.header("🚗 Mobility")
-    st.write("Nanti berisi catatan J6, Tiggo 8 CSH, servis, pajak, dan perjalanan.")
+    st.write("Nanti berisi catatan J6, Tiggo 8 CSH, servis, pajak, charging, dan perjalanan.")
 
-if menu == "🕌 Islamic Things":
+elif menu == "🕌 Islamic Things":
     st.header("🕌 Islamic Things")
     st.write("Nanti berisi Glory Morning Quran, Afternoon Hadits, doa, dzikir, dan renungan.")
