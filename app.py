@@ -7,11 +7,12 @@ from datetime import date
 
 st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
 
-APP_VERSION = "V13.0.1 ISLAMIC HOTFIX"
+APP_VERSION = "V13.0.3 SPLIT API"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
 HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Health"
 ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Islamic"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG9Wf3MFQQegujmubT2NW_U53DdbuqPU22UrI43FVPl5FE8X-L_D9D8fuQ1k7pSITxow/exec"
+HEALTH_API_URL = "https://script.google.com/macros/s/AKfycbzG9Wf3MFQQegujmubT2NW_U53DdbuqPU22UrI43FVPl5FE8X-L_D9D8fuQ1k7pSITxow/exec"
+ISLAMIC_API_URL = "https://script.google.com/macros/s/AKfycbyblLjqJ6iF383GdW-n3ZpS3UQUvLdFK3891F7thZobeyMFLjXPSJDAx1x4a3-j4gInBw/exec"
 
 st.markdown("""
 <style>
@@ -175,9 +176,9 @@ def islamic_status(score):
     if score >= 60: return "🟠 Need Focus"
     return "🔴 Restart Gently"
 
-def post_to_apps_script(payload):
+def post_to_apps_script(api_url, payload):
     try:
-        r = requests.post(APPS_SCRIPT_URL, json=payload, timeout=20)
+        r = requests.post(api_url, json=payload, timeout=20)
         if r.status_code != 200:
             return False, f"HTTP {r.status_code}: {r.text[:250]}"
         try:
@@ -194,24 +195,22 @@ def post_to_apps_script(payload):
 
 def save_health_to_sheet(nama, tanggal, chol, ua, glucose):
     payload = {
-        "module": "health",
         "Nama": nama,
         "Tanggal": str(tanggal),
         "Chol": int(chol),
         "UA": float(ua),
         "Glucose": int(glucose),
     }
-    return post_to_apps_script(payload)
+    return post_to_apps_script(HEALTH_API_URL, payload)
 
 def save_islamic_to_sheet(nama, tanggal, checklist, catatan):
     payload = {
-        "module": "islamic",
         "Nama": nama,
         "Tanggal": str(tanggal),
         "Catatan": catatan or "",
     }
     payload.update(checklist)
-    return post_to_apps_script(payload)
+    return post_to_apps_script(ISLAMIC_API_URL, payload)
 
 def plot_health_metric(data, metric, title, nama):
     chart = data.dropna(subset=[metric]).copy()
@@ -324,7 +323,7 @@ health_df = load_health_data()
 islamic_df = load_islamic_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("V13.0.1 — Islamic Things Hotfix")
+st.caption("V13.0.3 — Split API Stable")
 st.markdown(f'<span class="dhp-version">{APP_VERSION}</span>', unsafe_allow_html=True)
 
 menu = st.sidebar.radio(
@@ -337,7 +336,7 @@ if st.sidebar.button("🔄 Refresh data"):
 
 if menu == "🏠 Home":
     st.header("Home Dashboard")
-    st.success("DHP-Lifes V13.0.1 aktif — CSV hotfix running 🚀")
+    st.success("DHP-Lifes V13.0.3 aktif — Split API running 🚀")
 
     col_left, col_right = st.columns(2)
     for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
@@ -480,7 +479,7 @@ elif menu == "⚙️ Settings":
     st.header("Settings")
     st.write(f"Version: **{APP_VERSION}**")
     st.write("Database: **Google Sheet: Health + Islamic**")
-    st.write("Backend: **Google Apps Script Universal API V13**")
+    st.write("Backend: **Split API — Health API + Islamic API**")
     if st.button("Clear cache & refresh"):
         refresh_data()
 
