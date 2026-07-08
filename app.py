@@ -538,12 +538,3 @@ elif menu == "🚗 Mobility":
     st.header("Mobility")
     st.write("Foundation ready. Nanti berisi J6, Tiggo 8 CSH, servis, pajak, charging, dan perjalanan.")
 
-def existing_islamic_for_date(df, nama, tanggal):
-    if df.empty:
-        return None
-    target = pd.to_datetime(str(tanggal)).date()
-    data = df[(df["Nama"] == nama) & (df["Tanggal"].dt.date == target)].copy()
-    if data.empty:
-        return None
-    return data.iloc[-1]
-
