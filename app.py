@@ -127,7 +127,7 @@ def load_islamic_data():
     df["IstiqamahIndex"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
     return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
     
-    def post_to_apps_script(api_url, payload):
+def post_to_apps_script(api_url, payload):
     try:
         response = requests.post(api_url, json=payload, timeout=20)
 
