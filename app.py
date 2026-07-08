@@ -167,7 +167,7 @@ def calculate_istiqamah_index(values):
     total = len(values)
     done = sum(1 for v in values if v)
     index = round(done / total * 100) if total else 0
-    return done, total, score
+    return done, total, index
 
 def istiqamah_status(index):
     if index >= 95:
