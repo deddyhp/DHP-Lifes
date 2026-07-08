@@ -7,10 +7,10 @@ from datetime import date
 
 st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
 
-APP_VERSION = "V13.0 ISLAMIC THINGS"
+APP_VERSION = "V13.0.1 ISLAMIC HOTFIX"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
-HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
-ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Islamic"
+HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Health"
+ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Islamic"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG9Wf3MFQQegujmubT2NW_U53DdbuqPU22UrI43FVPl5FE8X-L_D9D8fuQ1k7pSITxow/exec"
 
 st.markdown("""
@@ -324,7 +324,7 @@ health_df = load_health_data()
 islamic_df = load_islamic_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("V13.0 — Islamic Things Foundation")
+st.caption("V13.0.1 — Islamic Things Hotfix")
 st.markdown(f'<span class="dhp-version">{APP_VERSION}</span>', unsafe_allow_html=True)
 
 menu = st.sidebar.radio(
@@ -337,7 +337,7 @@ if st.sidebar.button("🔄 Refresh data"):
 
 if menu == "🏠 Home":
     st.header("Home Dashboard")
-    st.success("DHP-Lifes V13.0 aktif — Islamic Things Foundation 🚀")
+    st.success("DHP-Lifes V13.0.1 aktif — CSV hotfix running 🚀")
 
     col_left, col_right = st.columns(2)
     for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
