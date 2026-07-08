@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,9 +7,10 @@ from datetime import date
 
 st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
 
-APP_VERSION = "V12 STABLE CANDIDATE"
+APP_VERSION = "V13.0 ISLAMIC THINGS"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Islamic"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG9Wf3MFQQegujmubT2NW_U53DdbuqPU22UrI43FVPl5FE8X-L_D9D8fuQ1k7pSITxow/exec"
 
 st.markdown("""
@@ -44,22 +46,84 @@ h3 {font-size:1.65rem !important; font-weight:760 !important;}
     font-size:.9rem;
     opacity:.82;
 }
+.islamic-score {
+    font-size:3.1rem;
+    font-weight:900;
+    line-height:1;
+}
 </style>
 """, unsafe_allow_html=True)
 
+def get_islamic_items():
+    return [
+        "Tahajud", "Witir", "Dhuha", "DzikirPagi", "DzikirPetang",
+        "Sholawat100", "Tahlil100", "GMQ", "AHD", "Sedekah", "Tilawah"
+    ]
+
+def item_label(col):
+    labels = {
+        "Tahajud": "Tahajud",
+        "Witir": "Witir",
+        "Dhuha": "Dhuha",
+        "DzikirPagi": "Dzikir Pagi",
+        "DzikirPetang": "Dzikir Petang",
+        "Sholawat100": "Sholawat 100x",
+        "Tahlil100": "Laa ilaaha illallah 100x",
+        "GMQ": "Glory Morning Quran",
+        "AHD": "Afternoon Hadits",
+        "Sedekah": "Sedekah",
+        "Tilawah": "Tilawah",
+    }
+    return labels.get(col, col)
+
+def to_bool(value):
+    if value is True:
+        return True
+    if value is False:
+        return False
+    text = str(value).strip().lower()
+    return text in ["true", "yes", "1", "done", "y", "checked"]
+
 @st.cache_data(ttl=30)
-def load_data():
-    df = pd.read_csv(CSV_URL)
+def load_health_data():
+    df = pd.read_csv(HEALTH_CSV_URL)
     required = ["Nama", "Tanggal", "Chol", "UA", "Glucose"]
     missing = [c for c in required if c not in df.columns]
     if missing:
-        st.error(f"Kolom hilang di Google Sheet: {missing}")
+        st.error(f"Kolom hilang di sheet Health: {missing}")
         st.stop()
     df = df[required].copy()
     df["Nama"] = df["Nama"].astype(str).str.strip()
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
     for col in ["Chol", "UA", "Glucose"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
+
+@st.cache_data(ttl=30)
+def load_islamic_data():
+    try:
+        df = pd.read_csv(ISLAMIC_CSV_URL)
+    except Exception:
+        return pd.DataFrame()
+
+    required = [
+        "Nama", "Tanggal", "Tahajud", "Witir", "Dhuha", "DzikirPagi",
+        "DzikirPetang", "Sholawat100", "Tahlil100", "GMQ", "AHD",
+        "Sedekah", "Tilawah", "Catatan"
+    ]
+
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        return pd.DataFrame()
+
+    df = df[required].copy()
+    df["Nama"] = df["Nama"].astype(str).str.strip()
+    df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+
+    for col in get_islamic_items():
+        df[col] = df[col].apply(to_bool)
+
+    df["Score"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
     return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
 
 def refresh_data():
@@ -91,13 +155,27 @@ def status_ua(v, nama):
 
 def delta_value(data, col):
     clean = data.dropna(subset=[col])
-    if len(clean) < 2: return None
+    if len(clean) < 2:
+        return None
     diff = clean.iloc[-1][col] - clean.iloc[-2][col]
-    if diff == 0: return "0.0"
+    if diff == 0:
+        return "0.0"
     return f"{diff:+.1f}"
 
-def save_to_google_sheet(nama, tanggal, chol, ua, glucose):
-    payload = {"Nama": nama, "Tanggal": str(tanggal), "Chol": int(chol), "UA": float(ua), "Glucose": int(glucose)}
+def calculate_islamic_score(values):
+    total = len(values)
+    done = sum(1 for v in values if v)
+    score = round(done / total * 100) if total else 0
+    return done, total, score
+
+def islamic_status(score):
+    if score >= 90: return "🟢 Excellent"
+    if score >= 80: return "🟢 Very Good"
+    if score >= 70: return "🟡 Good"
+    if score >= 60: return "🟠 Need Focus"
+    return "🔴 Restart Gently"
+
+def post_to_apps_script(payload):
     try:
         r = requests.post(APPS_SCRIPT_URL, json=payload, timeout=20)
         if r.status_code != 200:
@@ -109,12 +187,33 @@ def save_to_google_sheet(nama, tanggal, chol, ua, glucose):
             return True, "Data terkirim. Respons bukan JSON, tapi request berhasil."
         if result.get("status") == "success":
             st.cache_data.clear()
-            return True, "Data berhasil disimpan ke Google Sheet."
+            return True, result.get("message", "Data berhasil disimpan.")
         return False, f"Apps Script error: {result}"
     except Exception as e:
         return False, f"Gagal konek ke Apps Script: {e}"
 
-def plot_metric(data, metric, title, nama):
+def save_health_to_sheet(nama, tanggal, chol, ua, glucose):
+    payload = {
+        "module": "health",
+        "Nama": nama,
+        "Tanggal": str(tanggal),
+        "Chol": int(chol),
+        "UA": float(ua),
+        "Glucose": int(glucose),
+    }
+    return post_to_apps_script(payload)
+
+def save_islamic_to_sheet(nama, tanggal, checklist, catatan):
+    payload = {
+        "module": "islamic",
+        "Nama": nama,
+        "Tanggal": str(tanggal),
+        "Catatan": catatan or "",
+    }
+    payload.update(checklist)
+    return post_to_apps_script(payload)
+
+def plot_health_metric(data, metric, title, nama):
     chart = data.dropna(subset=[metric]).copy()
     if chart.empty:
         st.warning(f"Belum ada data untuk {metric}.")
@@ -137,13 +236,31 @@ def plot_metric(data, metric, title, nama):
     st.pyplot(fig)
     plt.close(fig)
 
+def plot_islamic_score(data):
+    chart = data.dropna(subset=["Score"]).copy()
+    if chart.empty:
+        st.info("Belum ada data score Islamic.")
+        return
+    fig, ax = plt.subplots(figsize=(11, 4.2))
+    ax.plot(chart["Tanggal"], chart["Score"], marker="o", linewidth=2)
+    ax.set_title("Trend Islamic Score")
+    ax.set_xlabel("Tanggal")
+    ax.set_ylabel("Score")
+    ax.set_ylim(0, 105)
+    ax.grid(True, alpha=0.3)
+    ax.axhline(80, linestyle="--", alpha=0.5)
+    ax.axhline(90, linestyle="--", alpha=0.5)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    plt.close(fig)
+
 def profile_name(nama):
-    icon = "👤" if nama == "Deddy" else "👩"
+    icon = "🌿" if nama == "Deddy" else "🌸"
     return f"{icon} {nama.upper()}"
 
 def open_card(nama, data):
     last_update = "Belum ada data"
-    if not data.empty:
+    if not data.empty and "Tanggal" in data.columns:
         last_update = str(data.iloc[-1]["Tanggal"].date())
     st.markdown(f"""
     <div class="dhp-card">
@@ -154,7 +271,7 @@ def open_card(nama, data):
 def close_card():
     st.markdown("</div>", unsafe_allow_html=True)
 
-def metric_cards(data, nama):
+def health_metric_cards(data, nama):
     if data.empty:
         st.warning(f"Belum ada data untuk {nama}.")
         return
@@ -186,20 +303,33 @@ def health_insight(data, nama):
             "\n\nPerubahan dari pemeriksaan sebelumnya: "
             f"Chol {latest['Chol'] - prev['Chol']:+.1f}, "
             f"UA {latest['UA'] - prev['UA']:+.1f}, "
-            f"Glucose {latest['Glucose'] - prev['Glucose']:+.1f}. "
-            "Untuk parameter ini, angka turun biasanya lebih baik selama tidak terlalu rendah."
+            f"Glucose {latest['Glucose'] - prev['Glucose']:+.1f}."
         )
     return text
 
-df = load_data()
+def latest_islamic_summary(data):
+    if data.empty:
+        st.info("Belum ada data Islamic.")
+        return
+    latest = data.iloc[-1]
+    score = round(latest["Score"])
+    done = int(sum(latest[col] for col in get_islamic_items()))
+    total = len(get_islamic_items())
+    st.markdown(f'<div class="islamic-score">{score}</div>', unsafe_allow_html=True)
+    st.write(f"**{done} / {total} checklist done**")
+    st.write(islamic_status(score))
+    st.caption(f"Last update: {latest['Tanggal'].date()}")
+
+health_df = load_health_data()
+islamic_df = load_islamic_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("V12 STABLE CANDIDATE — Foundation Lock")
+st.caption("V13.0 — Islamic Things Foundation")
 st.markdown(f'<span class="dhp-version">{APP_VERSION}</span>', unsafe_allow_html=True)
 
 menu = st.sidebar.radio(
     "Menu",
-    ["🏠 Home", "❤️ Health", "➕ Tambah Data", "🎯 Target", "⚙️ Settings", "☕ Coffee Lab", "🚗 Mobility", "🕌 Islamic Things"],
+    ["🏠 Home", "❤️ Health", "➕ Tambah Health", "🕌 Islamic Things", "🎯 Target", "⚙️ Settings", "☕ Coffee Lab", "🚗 Mobility"],
 )
 
 if st.sidebar.button("🔄 Refresh data"):
@@ -207,30 +337,35 @@ if st.sidebar.button("🔄 Refresh data"):
 
 if menu == "🏠 Home":
     st.header("Home Dashboard")
-    st.success("DHP-Lifes V12 Stable Candidate aktif — foundation lock running 🚀")
+    st.success("DHP-Lifes V13.0 aktif — Islamic Things Foundation 🚀")
+
     col_left, col_right = st.columns(2)
     for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
         with container:
-            data = df[df["Nama"] == nama].copy()
+            data = health_df[health_df["Nama"] == nama].copy()
             open_card(nama, data)
-            metric_cards(data, nama)
+            health_metric_cards(data, nama)
             close_card()
+
+    st.divider()
+    st.subheader("🕌 Islamic Today")
+    islamic_deddy = islamic_df[islamic_df["Nama"] == "Deddy"].copy() if not islamic_df.empty else pd.DataFrame()
+    latest_islamic_summary(islamic_deddy)
+
     st.divider()
     st.subheader("📌 Database Status")
-    st.write(f"Total data terbaca: **{len(df)} baris**")
-    st.write(f"Profil: **{', '.join(sorted(df['Nama'].dropna().unique()))}**")
-    st.caption("Sumber data: Google Sheet Health")
+    st.write(f"Health data: **{len(health_df)} baris**")
+    st.write(f"Islamic data: **{len(islamic_df)} baris**")
 
 elif menu == "❤️ Health":
     st.header("Health Dashboard")
-    nama = st.selectbox("Pilih profil", sorted(df["Nama"].dropna().unique()))
-    data = df[df["Nama"] == nama].copy()
+    nama = st.selectbox("Pilih profil", sorted(health_df["Nama"].dropna().unique()))
+    data = health_df[health_df["Nama"] == nama].copy()
     if data.empty:
         st.warning("Belum ada data.")
         st.stop()
     open_card(nama, data)
-    metric_cards(data, nama)
-    st.caption("Delta: ↑ angka naik, ↓ angka turun. Warna hijau berarti arah membaik.")
+    health_metric_cards(data, nama)
     close_card()
     st.divider()
     st.subheader("📌 Insight Singkat")
@@ -247,14 +382,14 @@ elif menu == "❤️ Health":
     elif rentang == "20 data terakhir":
         plot_data = plot_data.tail(20)
     title_map = {"Chol": "Trend Kolesterol", "UA": "Trend Asam Urat", "Glucose": "Trend Glucose"}
-    plot_metric(plot_data, metric, title_map[metric], nama)
+    plot_health_metric(plot_data, metric, title_map[metric], nama)
     st.divider()
     st.subheader("📋 Data Riwayat")
     st.dataframe(data.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
 
-elif menu == "➕ Tambah Data":
-    st.header("Tambah Data Pemeriksaan")
-    st.success("Mode auto-save aktif. Data akan langsung masuk ke Google Sheet.")
+elif menu == "➕ Tambah Health":
+    st.header("Tambah Data Health")
+    st.success("Mode auto-save aktif. Data akan langsung masuk ke Google Sheet tab Health.")
     nama = st.selectbox("Nama", ["Deddy", "Istri"])
     tanggal = st.date_input("Tanggal", date.today())
     c1, c2, c3 = st.columns(3)
@@ -267,49 +402,87 @@ elif menu == "➕ Tambah Data":
     with c3:
         glucose = st.number_input("Glucose", min_value=0, step=1, value=0)
         st.caption(status_glucose(glucose))
-    st.divider()
-    st.write(f"Preview: **{nama} | {tanggal} | Chol {chol} | UA {ua} | Glucose {glucose}**")
-    if st.button("💾 Simpan ke Google Sheet"):
+    if st.button("💾 Simpan Health"):
         if chol == 0 and ua == 0 and glucose == 0:
-            st.error("Data masih kosong. Isi nilai pemeriksaan dulu.")
+            st.error("Data masih kosong.")
         else:
-            ok, msg = save_to_google_sheet(nama, tanggal, chol, ua, glucose)
+            ok, msg = save_health_to_sheet(nama, tanggal, chol, ua, glucose)
             if ok:
                 st.success(msg)
-                st.info("Klik Refresh data di sidebar atau tunggu 30 detik lalu refresh halaman.")
+                st.info("Klik Refresh data di sidebar atau tunggu 30 detik.")
             else:
                 st.error(msg)
+
+elif menu == "🕌 Islamic Things":
+    st.header("🕌 Islamic Things")
+    st.caption("Daily checklist untuk menjaga konsistensi ibadah.")
+
+    nama = st.selectbox("Nama", ["Deddy", "Istri"])
+    tanggal = st.date_input("Tanggal", date.today(), key="islamic_date")
+
+    st.subheader("Checklist Harian")
+    checklist = {}
+    cols = st.columns(2)
+    items = get_islamic_items()
+
+    for idx, item in enumerate(items):
+        with cols[idx % 2]:
+            checklist[item] = st.checkbox(item_label(item), value=False)
+
+    catatan = st.text_area("Catatan", placeholder="Catatan singkat jika ada...")
+
+    done, total, score = calculate_islamic_score(checklist.values())
+
     st.divider()
-    st.subheader("Backup manual")
-    st.code(f"{nama}\t{tanggal}\t{chol}\t{ua}\t{glucose}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Done", f"{done} / {total}")
+    c2.metric("Islamic Score", score)
+    c3.write(islamic_status(score))
+
+    if st.button("💾 Simpan Islamic Checklist"):
+        ok, msg = save_islamic_to_sheet(nama, tanggal, checklist, catatan)
+        if ok:
+            st.success(msg)
+            st.info("Klik Refresh data di sidebar atau tunggu 30 detik.")
+        else:
+            st.error(msg)
+
+    st.divider()
+    st.subheader("Riwayat Islamic")
+    data = islamic_df[islamic_df["Nama"] == nama].copy() if not islamic_df.empty else pd.DataFrame()
+    if data.empty:
+        st.info("Belum ada riwayat Islamic.")
+    else:
+        latest_islamic_summary(data)
+        plot_islamic_score(data)
+        st.dataframe(data.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
 
 elif menu == "🎯 Target":
     st.header("Target & Rules")
     st.info("""
-**Target dashboard:**
+**Health Target:**
 
 - Chol: 🟢 <200 Normal | 🟡 200–239 Waspada | 🔴 ≥240 Tinggi
 - Glucose: 🔵 <70 Very Low | 🟢 70–99 Ideal | 🟡 100–125 Waspada | 🔴 ≥126 Tinggi
 - UA Deddy: 🟢 ≤7.5 Normal | 🟡 7.6–8.0 Waspada | 🔴 >8.0 Tinggi
 - UA Istri: 🟢 ≤6.0 Normal | 🟡 6.1–7.0 Waspada | 🔴 >7.0 Tinggi
 
-**Delta color:**
-- Angka naik ditampilkan merah untuk Chol, UA, dan Glucose.
-- Angka turun ditampilkan hijau.
-- Panah tetap menunjukkan arah data sebenarnya.
+**Islamic Score:**
+
+- 90–100: Excellent
+- 80–89: Very Good
+- 70–79: Good
+- 60–69: Need Focus
+- <60: Restart Gently
 """)
 
 elif menu == "⚙️ Settings":
     st.header("Settings")
-    st.subheader("Application")
     st.write(f"Version: **{APP_VERSION}**")
-    st.write("Database: **Google Sheet Health**")
-    st.write("Write mode: **Google Apps Script Web App**")
-    st.write("Status: **Foundation Lock Candidate**")
-    st.divider()
+    st.write("Database: **Google Sheet: Health + Islamic**")
+    st.write("Backend: **Google Apps Script Universal API V13**")
     if st.button("Clear cache & refresh"):
         refresh_data()
-    st.caption("V12 fokus mengunci fondasi sebelum modul Coffee Lab, Mobility, dan Islamic Things.")
 
 elif menu == "☕ Coffee Lab":
     st.header("Coffee Lab")
@@ -318,7 +491,3 @@ elif menu == "☕ Coffee Lab":
 elif menu == "🚗 Mobility":
     st.header("Mobility")
     st.write("Foundation ready. Nanti berisi J6, Tiggo 8 CSH, servis, pajak, charging, dan perjalanan.")
-
-elif menu == "🕌 Islamic Things":
-    st.header("Islamic Things")
-    st.write("Foundation ready. Nanti berisi Glory Morning Quran, Afternoon Hadits, doa, dzikir, dan renungan.")
