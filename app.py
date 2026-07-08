@@ -305,7 +305,21 @@ def latest_istiqamah_summary(data):
     st.write(f"**{done} / {total} checklist done**")
     st.write(istiqamah_status(index))
     st.caption(f"Last update: {latest['Tanggal'].date()}")
+    
+def existing_islamic_for_date(df, nama, tanggal):
+    if df.empty:
+        return None
 
+    target = pd.to_datetime(str(tanggal)).date()
+    data = df[
+        (df["Nama"] == nama) &
+        (df["Tanggal"].dt.date == target)
+    ].copy()
+
+    if data.empty:
+        return None
+
+    return data.iloc[-1]
 health_df = load_health_data()
 islamic_df = load_islamic_data()
 
