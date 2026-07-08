@@ -127,17 +127,30 @@ def load_islamic_data():
     df["IstiqamahIndex"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
     return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
     
-def post_to_apps_script(api_url, payload):
+    def post_to_apps_script(api_url, payload):
     try:
         response = requests.post(api_url, json=payload, timeout=20)
 
         if response.status_code != 200:
-            return False, f"HTTP Error {response.status_code}"
+            return False, f"HTTP Error {response.status_code}: {response.text[:200]}"
 
-        result = response.json()
+        text = response.text.strip()
+
+        if text == "":
+            st.cache_data.clear()
+            return True, "Data terkirim. Respons kosong dari Apps Script."
+
+        try:
+            result = response.json()
+        except Exception:
+            st.cache_data.clear()
+            return True, "Data terkirim. Respons bukan JSON, tapi request berhasil."
 
         if result.get("status") == "success":
             st.cache_data.clear()
+            action = result.get("action", "")
+            if action == "update":
+                return True, "Revisi hari ini berhasil disimpan."
             return True, result.get("message", "Data berhasil disimpan.")
 
         return False, result.get("message", "Apps Script Error")
