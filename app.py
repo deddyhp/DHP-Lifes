@@ -126,7 +126,25 @@ def load_islamic_data():
 
     df["IstiqamahIndex"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
     return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
+    
+def post_to_apps_script(api_url, payload):
+    try:
+        response = requests.post(api_url, json=payload, timeout=20)
 
+        if response.status_code != 200:
+            return False, f"HTTP Error {response.status_code}"
+
+        result = response.json()
+
+        if result.get("status") == "success":
+            st.cache_data.clear()
+            return True, result.get("message", "Data berhasil disimpan.")
+
+        return False, result.get("message", "Apps Script Error")
+
+    except Exception as e:
+        return False, str(e)
+        
 def refresh_data():
     st.cache_data.clear()
     st.rerun()
