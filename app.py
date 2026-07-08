@@ -7,7 +7,7 @@ from datetime import date
 
 st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
 
-APP_VERSION = "V13.0.3 SPLIT API"
+APP_VERSION = "V13.1 TOWARDS ISTIQAMAH"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
 HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Health"
 ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Islamic"
@@ -47,7 +47,7 @@ h3 {font-size:1.65rem !important; font-weight:760 !important;}
     font-size:.9rem;
     opacity:.82;
 }
-.islamic-score {
+.istiqamah-index {
     font-size:3.1rem;
     font-weight:900;
     line-height:1;
@@ -58,7 +58,7 @@ h3 {font-size:1.65rem !important; font-weight:760 !important;}
 def get_islamic_items():
     return [
         "Tahajud", "Witir", "Dhuha", "DzikirPagi", "DzikirPetang",
-        "Sholawat100", "Tahlil100", "GMQ", "AHD", "Sedekah", "Tilawah"
+        "Tahlil100", "Sholawat100", "GMQ", "AHD", "Sedekah", "Tilawah"
     ]
 
 def item_label(col):
@@ -68,10 +68,10 @@ def item_label(col):
         "Dhuha": "Dhuha",
         "DzikirPagi": "Dzikir Pagi",
         "DzikirPetang": "Dzikir Petang",
-        "Sholawat100": "Sholawat 100x",
-        "Tahlil100": "Laa ilaaha illallah 100x",
-        "GMQ": "Glory Morning Quran",
-        "AHD": "Afternoon Hadits",
+        "Sholawat100": "Dzikir Sholawat",
+        "Tahlil100": "Dzikir Tauhid",
+        "GMQ": "Kajian Quran",
+        "AHD": "Kajian Hadits",
         "Sedekah": "Sedekah",
         "Tilawah": "Tilawah",
     }
@@ -124,7 +124,7 @@ def load_islamic_data():
     for col in get_islamic_items():
         df[col] = df[col].apply(to_bool)
 
-    df["Score"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
+    df["IstiqamahIndex"] = df[get_islamic_items()].sum(axis=1) / len(get_islamic_items()) * 100
     return df.dropna(subset=["Nama", "Tanggal"]).sort_values(["Nama", "Tanggal"]).reset_index(drop=True)
 
 def refresh_data():
@@ -163,35 +163,22 @@ def delta_value(data, col):
         return "0.0"
     return f"{diff:+.1f}"
 
-def calculate_islamic_score(values):
+def calculate_istiqamah_index(values):
     total = len(values)
     done = sum(1 for v in values if v)
-    score = round(done / total * 100) if total else 0
+    index = round(done / total * 100) if total else 0
     return done, total, score
 
-def islamic_status(score):
-    if score >= 90: return "🟢 Excellent"
-    if score >= 80: return "🟢 Very Good"
-    if score >= 70: return "🟡 Good"
-    if score >= 60: return "🟠 Need Focus"
-    return "🔴 Restart Gently"
-
-def post_to_apps_script(api_url, payload):
-    try:
-        r = requests.post(api_url, json=payload, timeout=20)
-        if r.status_code != 200:
-            return False, f"HTTP {r.status_code}: {r.text[:250]}"
-        try:
-            result = r.json()
-        except Exception:
-            st.cache_data.clear()
-            return True, "Data terkirim. Respons bukan JSON, tapi request berhasil."
-        if result.get("status") == "success":
-            st.cache_data.clear()
-            return True, result.get("message", "Data berhasil disimpan.")
-        return False, f"Apps Script error: {result}"
-    except Exception as e:
-        return False, f"Gagal konek ke Apps Script: {e}"
+def istiqamah_status(index):
+    if index >= 95:
+        return "🤲 Semoga Allah Menjaga Istiqamahmu"
+    if index >= 80:
+        return "🌺 Sangat Konsisten"
+    if index >= 60:
+        return "🌳 Menuju Istiqamah"
+    if index >= 40:
+        return "🌿 Terus Bertumbuh"
+    return "🌱 Awal Perjalanan"
 
 def save_health_to_sheet(nama, tanggal, chol, ua, glucose):
     payload = {
@@ -235,16 +222,16 @@ def plot_health_metric(data, metric, title, nama):
     st.pyplot(fig)
     plt.close(fig)
 
-def plot_islamic_score(data):
-    chart = data.dropna(subset=["Score"]).copy()
+def plot_istiqamah_index(data):
+    chart = data.dropna(subset=["IstiqamahIndex"]).copy()
     if chart.empty:
-        st.info("Belum ada data score Islamic.")
+        st.info("Belum ada data Istiqamah Index.")
         return
     fig, ax = plt.subplots(figsize=(11, 4.2))
-    ax.plot(chart["Tanggal"], chart["Score"], marker="o", linewidth=2)
-    ax.set_title("Trend Islamic Score")
+    ax.plot(chart["Tanggal"], chart["IstiqamahIndex"], marker="o", linewidth=2)
+    ax.set_title("Trend Istiqamah Index")
     ax.set_xlabel("Tanggal")
-    ax.set_ylabel("Score")
+    ax.set_ylabel("IstiqamahIndex")
     ax.set_ylim(0, 105)
     ax.grid(True, alpha=0.3)
     ax.axhline(80, linestyle="--", alpha=0.5)
@@ -306,29 +293,29 @@ def health_insight(data, nama):
         )
     return text
 
-def latest_islamic_summary(data):
+def latest_istiqamah_summary(data):
     if data.empty:
         st.info("Belum ada data Islamic.")
         return
     latest = data.iloc[-1]
-    score = round(latest["Score"])
+    index = round(latest["IstiqamahIndex"])
     done = int(sum(latest[col] for col in get_islamic_items()))
     total = len(get_islamic_items())
-    st.markdown(f'<div class="islamic-score">{score}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="istiqamah-index">{index}</div>', unsafe_allow_html=True)
     st.write(f"**{done} / {total} checklist done**")
-    st.write(islamic_status(score))
+    st.write(istiqamah_status(index))
     st.caption(f"Last update: {latest['Tanggal'].date()}")
 
 health_df = load_health_data()
 islamic_df = load_islamic_data()
 
 st.title("❤️ DHP-Lifes")
-st.caption("V13.0.3 — Split API Stable")
+st.caption("V13.1 — Towards Istiqamah")
 st.markdown(f'<span class="dhp-version">{APP_VERSION}</span>', unsafe_allow_html=True)
 
 menu = st.sidebar.radio(
     "Menu",
-    ["🏠 Home", "❤️ Health", "➕ Tambah Health", "🕌 Islamic Things", "🎯 Target", "⚙️ Settings", "☕ Coffee Lab", "🚗 Mobility"],
+    ["🏠 Home", "❤️ Health", "➕ Tambah Health", "🕌 Islamic Things", "🎯 Target", "⚙️ Settings", "🫘 Coffee Lab", "🚗 Mobility"],
 )
 
 if st.sidebar.button("🔄 Refresh data"):
@@ -336,7 +323,7 @@ if st.sidebar.button("🔄 Refresh data"):
 
 if menu == "🏠 Home":
     st.header("Home Dashboard")
-    st.success("DHP-Lifes V13.0.3 aktif — Split API running 🚀")
+    st.success("DHP-Lifes V13.1 aktif — Towards Istiqamah 🚀")
 
     col_left, col_right = st.columns(2)
     for container, nama in zip([col_left, col_right], ["Deddy", "Istri"]):
@@ -347,9 +334,9 @@ if menu == "🏠 Home":
             close_card()
 
     st.divider()
-    st.subheader("🕌 Islamic Today")
+    st.subheader("🕌 Istiqamah")
     islamic_deddy = islamic_df[islamic_df["Nama"] == "Deddy"].copy() if not islamic_df.empty else pd.DataFrame()
-    latest_islamic_summary(islamic_deddy)
+    latest_istiqamah_summary(islamic_deddy)
 
     st.divider()
     st.subheader("📌 Database Status")
@@ -414,7 +401,7 @@ elif menu == "➕ Tambah Health":
 
 elif menu == "🕌 Islamic Things":
     st.header("🕌 Islamic Things")
-    st.caption("Daily checklist untuk menjaga konsistensi ibadah.")
+    st.caption("Your Journey Companion")
 
     nama = st.selectbox("Nama", ["Deddy", "Istri"])
     tanggal = st.date_input("Tanggal", date.today(), key="islamic_date")
@@ -424,21 +411,36 @@ elif menu == "🕌 Islamic Things":
     cols = st.columns(2)
     items = get_islamic_items()
 
+    existing = existing_islamic_for_date(islamic_df, nama, tanggal)
+    if existing is not None:
+        st.info("✏️ Data hari ini sudah ada. Simpan ulang akan menjadi revisi hari ini, bukan membuat baris baru.")
+
     for idx, item in enumerate(items):
+        default_value = bool(existing[item]) if existing is not None else False
         with cols[idx % 2]:
-            checklist[item] = st.checkbox(item_label(item), value=False)
+            checklist[item] = st.checkbox(item_label(item), value=default_value)
 
-    catatan = st.text_area("Catatan", placeholder="Catatan singkat jika ada...")
+    default_catatan = str(existing["Catatan"]) if existing is not None and pd.notna(existing["Catatan"]) else ""
+    catatan = st.text_area("Catatan", value=default_catatan, placeholder="Catatan singkat jika ada...")
 
-    done, total, score = calculate_islamic_score(checklist.values())
+    done, total, index = calculate_istiqamah_index(checklist.values())
 
     st.divider()
     c1, c2, c3 = st.columns(3)
     c1.metric("Done", f"{done} / {total}")
-    c2.metric("Islamic Score", score)
-    c3.write(islamic_status(score))
+    c2.metric("Istiqamah Index", index)
+    c3.write(istiqamah_status(index))
 
-    if st.button("💾 Simpan Islamic Checklist"):
+    st.divider()
+    st.subheader("🤲 Muhasabah")
+    st.info(
+        "Dashboard ini bukan untuk dinilai siapa pun. Ia hanya saksi perjalananmu menuju Allah. "
+        "Sudahkah catatan hari ini benar?"
+    )
+    confirmed = st.checkbox("Saya sudah memeriksa kembali catatan hari ini.")
+    button_label = "✏️ Revisi Hari Ini" if existing_islamic_for_date(islamic_df, nama, tanggal) is not None else "💾 Simpan Hari Ini"
+
+    if st.button(button_label, disabled=not confirmed):
         ok, msg = save_islamic_to_sheet(nama, tanggal, checklist, catatan)
         if ok:
             st.success(msg)
@@ -452,8 +454,8 @@ elif menu == "🕌 Islamic Things":
     if data.empty:
         st.info("Belum ada riwayat Islamic.")
     else:
-        latest_islamic_summary(data)
-        plot_islamic_score(data)
+        latest_istiqamah_summary(data)
+        plot_istiqamah_index(data)
         st.dataframe(data.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
 
 elif menu == "🎯 Target":
@@ -466,27 +468,37 @@ elif menu == "🎯 Target":
 - UA Deddy: 🟢 ≤7.5 Normal | 🟡 7.6–8.0 Waspada | 🔴 >8.0 Tinggi
 - UA Istri: 🟢 ≤6.0 Normal | 🟡 6.1–7.0 Waspada | 🔴 >7.0 Tinggi
 
-**Islamic Score:**
+**Istiqamah Index:**
 
-- 90–100: Excellent
-- 80–89: Very Good
-- 70–79: Good
-- 60–69: Need Focus
-- <60: Restart Gently
+- 0–39: Awal Perjalanan
+- 40–59: Terus Bertumbuh
+- 60–79: Menuju Istiqamah
+- 80–94: Sangat Konsisten
+- 95–100: Semoga Allah Menjaga Istiqamahmu
 """)
 
 elif menu == "⚙️ Settings":
     st.header("Settings")
     st.write(f"Version: **{APP_VERSION}**")
     st.write("Database: **Google Sheet: Health + Islamic**")
-    st.write("Backend: **Split API — Health API + Islamic API**")
+    st.write("Backend: **Split API — Health API + Islamic API UPSERT**")
     if st.button("Clear cache & refresh"):
         refresh_data()
 
-elif menu == "☕ Coffee Lab":
+elif menu == "🫘 Coffee Lab":
     st.header("Coffee Lab")
     st.write("Foundation ready. Nanti berisi import Artisan, roast log, cupping, green bean, dan profile intelligence.")
 
 elif menu == "🚗 Mobility":
     st.header("Mobility")
     st.write("Foundation ready. Nanti berisi J6, Tiggo 8 CSH, servis, pajak, charging, dan perjalanan.")
+
+def existing_islamic_for_date(df, nama, tanggal):
+    if df.empty:
+        return None
+    target = pd.to_datetime(str(tanggal)).date()
+    data = df[(df["Nama"] == nama) & (df["Tanggal"].dt.date == target)].copy()
+    if data.empty:
+        return None
+    return data.iloc[-1]
+
