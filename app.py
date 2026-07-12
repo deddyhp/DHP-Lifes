@@ -669,4 +669,4 @@ elif menu == "⚙️ Settings":
     st.divider()
     st.subheader("About")
     st.write("**DHP-Lifes**")
-    st.caption("Grow Dashboard — Healthy Body. Peaceful Soul.")
+    st.caption("2026 Grow Dashboard — Healthy Body. Peaceful Soul")
