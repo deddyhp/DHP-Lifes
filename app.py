@@ -6,9 +6,9 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide")
+st.set_page_config(page_title="DHP-Lifes", page_icon="❤️", layout="wide", initial_sidebar_state="collapsed")
 
-APP_VERSION = "V13.2 GROW DASHBOARD"
+APP_VERSION = "V13.3 MOBILE UI"
 SHEET_ID = "1vEcgjWVTH5hSO-jYeI13BBD_1OFEPkiQpeENh2OfnjQ"
 HEALTH_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Health"
 ISLAMIC_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Islamic"
@@ -19,41 +19,23 @@ DEFAULT_TIMEZONE = "Asia/Jakarta"
 
 st.markdown("""
 <style>
-.main .block-container {padding-top:1.05rem; max-width:1200px;}
-[data-testid="stSidebar"] {min-width:280px;}
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] div {font-size:1.22rem !important;}
-div[role="radiogroup"] label {font-size:1.28rem !important; padding:.28rem 0;}
-h1 {font-size:2.60rem !important; font-weight:850 !important;}
-h2 {font-size:2.05rem !important; font-weight:800 !important;}
-h3 {font-size:1.55rem !important; font-weight:760 !important;}
-.dhp-card {
-    border:1px solid rgba(128,128,128,.25);
-    border-radius:22px;
-    padding:20px;
-    margin-bottom:18px;
-    background:rgba(255,255,255,.035);
-    box-shadow:0 4px 18px rgba(0,0,0,.08);
-}
-.dhp-profile {
-    font-size:2.15rem;
-    font-weight:900;
-    margin-bottom:.15rem;
-}
-.dhp-version {
-    padding:.22rem .65rem;
-    border-radius:999px;
-    border:1px solid rgba(128,128,128,.35);
-    font-size:.85rem;
-    opacity:.82;
-}
-.istiqamah-index {
-    font-size:3.15rem;
-    font-weight:900;
-    line-height:1;
-}
-.small-muted {opacity:.72; font-size:.92rem;}
+:root {--dhp-bg:#fbfaf8;--dhp-card:rgba(255,255,255,.96);--dhp-text:#242736;--dhp-muted:#767986;--dhp-line:#ece8e4;--dhp-pink:#ef4f78;--dhp-pink-soft:#fff0f4;--dhp-gold:#d99535;--dhp-gold-soft:#fff8eb;}
+html,body,[class*="css"]{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+.stApp{background:linear-gradient(180deg,#fff 0%,var(--dhp-bg) 100%);color:var(--dhp-text)}
+.main .block-container{padding-top:.8rem;padding-bottom:5rem;max-width:820px}
+[data-testid="stHeader"]{background:rgba(255,255,255,.78);backdrop-filter:blur(12px)}
+[data-testid="stSidebar"]{width:min(84vw,320px)!important;background:#fff;border-right:1px solid var(--dhp-line)}
+[data-testid="stSidebar"]>div:first-child{width:min(84vw,320px)!important;padding:1rem .85rem}
+[data-testid="stSidebar"] label,[data-testid="stSidebar"] p{font-size:1rem!important}
+[data-testid="stSidebar"] div[role="radiogroup"] label{border-radius:14px;padding:.65rem .75rem!important;margin:.12rem 0}
+[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked){background:var(--dhp-pink-soft);color:var(--dhp-pink);font-weight:750}
+h1{font-size:2.25rem!important;font-weight:850!important;letter-spacing:-.04em;margin-bottom:.2rem!important}h2{font-size:1.75rem!important;font-weight:830!important}h3{font-size:1.25rem!important;font-weight:780!important}hr{border-color:var(--dhp-line)!important;margin:1.35rem 0!important}
+.dhp-hero{padding:.4rem 0 .9rem}.dhp-subtitle{color:var(--dhp-muted);font-size:1rem;margin-top:-.15rem}.dhp-version{display:inline-flex;margin-top:.65rem;padding:.34rem .75rem;border-radius:999px;border:1px solid var(--dhp-line);background:#fff;color:var(--dhp-muted);font-size:.78rem;font-weight:650;letter-spacing:.03em}
+.dhp-section{background:var(--dhp-card);border:1px solid var(--dhp-line);border-radius:24px;padding:1rem;margin:.85rem 0 1rem;box-shadow:0 10px 28px rgba(41,35,30,.055)}.dhp-section-title{display:flex;align-items:center;gap:.6rem;font-size:1.35rem;font-weight:850;letter-spacing:-.02em;margin-bottom:.85rem}.dhp-icon{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:14px;font-size:1.35rem;background:var(--dhp-pink-soft)}.dhp-icon.gold{background:var(--dhp-gold-soft)}
+.dhp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem}.dhp-stat{border:1px solid var(--dhp-line);border-radius:18px;padding:.85rem;min-height:126px;background:#fff}.dhp-stat-label{font-size:.78rem;color:var(--dhp-muted);font-weight:700;margin-bottom:.3rem}.dhp-stat-value{font-size:1.72rem;font-weight:880;letter-spacing:-.035em;line-height:1.1}.dhp-stat-delta{display:inline-block;margin-top:.5rem;padding:.18rem .45rem;border-radius:999px;font-size:.72rem;font-weight:750;background:#f4f5f7;color:#676b76}.dhp-stat-status{margin-top:.45rem;font-size:.78rem;color:var(--dhp-muted)}
+.dhp-insight{background:linear-gradient(135deg,#eef7ff,#f6fbff);border:1px solid #dcecf9;border-radius:18px;padding:.9rem 1rem;color:#275f8f;line-height:1.55}.dhp-callout{background:linear-gradient(135deg,var(--dhp-pink-soft),#fff);border:1px solid #f6dbe4;border-radius:18px;padding:.9rem 1rem}.dhp-score{font-size:2.7rem;font-weight:900;line-height:1;letter-spacing:-.05em}.small-muted{color:var(--dhp-muted);font-size:.86rem}
+[data-testid="stMetric"]{background:#fff;border:1px solid var(--dhp-line);padding:.8rem;border-radius:18px}[data-testid="stMetricValue"]{font-size:1.65rem}.stButton>button{border-radius:14px;min-height:42px;font-weight:750;border:1px solid var(--dhp-line)}.stButton>button[kind="primary"]{background:var(--dhp-pink);color:#fff;border:none}.stSelectbox div[data-baseweb="select"]>div,.stDateInput input,.stNumberInput input,.stTextArea textarea{border-radius:14px!important;background:#f7f7f9!important;border-color:transparent!important}.stRadio div[role="radiogroup"]{gap:.35rem;flex-wrap:wrap}.stRadio div[role="radiogroup"] label{background:#f6f6f8;border-radius:999px;padding:.32rem .65rem;border:1px solid transparent}.stRadio div[role="radiogroup"] label:has(input:checked){background:var(--dhp-pink-soft);border-color:#f3b6c7;color:var(--dhp-pink);font-weight:750}[data-testid="stDataFrame"]{border:1px solid var(--dhp-line);border-radius:18px;overflow:hidden}[data-testid="stExpander"]{border:1px solid var(--dhp-line);border-radius:18px;background:#fff}
+@media(max-width:640px){.main .block-container{padding:.65rem .85rem 5.5rem;max-width:100%}h1{font-size:2rem!important}h2{font-size:1.55rem!important}.dhp-section{border-radius:20px;padding:.85rem}.dhp-grid{gap:.45rem}.dhp-stat{padding:.7rem .55rem;min-height:118px}.dhp-stat-label{font-size:.67rem}.dhp-stat-value{font-size:1.35rem}.dhp-stat-delta,.dhp-stat-status{font-size:.64rem}[data-testid="column"]{min-width:0!important}.stHorizontalBlock{gap:.45rem}[data-testid="stMetric"]{padding:.65rem .55rem}[data-testid="stMetricLabel"]{font-size:.72rem}[data-testid="stMetricValue"]{font-size:1.35rem}button{font-size:.9rem!important}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -365,25 +347,36 @@ def plot_istiqamah(data):
 # =========================
 # UI HELPERS
 # =========================
+def _status_text(raw):
+    return raw.split(" ", 1)[1] if " " in raw else raw
+
+
+def _delta_badge(delta):
+    if delta is None:
+        return "Belum ada pembanding"
+    try:
+        value = float(delta)
+    except Exception:
+        return str(delta)
+    arrow = "↑" if value > 0 else "↓" if value < 0 else "→"
+    return f"{arrow} {abs(value):.1f}"
+
+
 def health_cards(data, nama):
     if data.empty:
         st.warning(f"Belum ada data untuk {nama}.")
         return
-
     latest = data.iloc[-1]
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.metric("Chol", int(latest["Chol"]), delta_value(data, "Chol"), delta_color="inverse")
-        st.caption(status_chol(latest["Chol"]))
-
-    with c2:
-        st.metric("UA", latest["UA"], delta_value(data, "UA"), delta_color="inverse")
-        st.caption(status_ua(latest["UA"], nama))
-
-    with c3:
-        st.metric("Glucose", int(latest["Glucose"]), delta_value(data, "Glucose"), delta_color="inverse")
-        st.caption(status_glucose(latest["Glucose"]))
+    cards = [
+        ("Cholesterol", int(latest["Chol"]), _delta_badge(delta_value(data, "Chol")), _status_text(status_chol(latest["Chol"]))),
+        ("Uric Acid", f"{latest['UA']:.1f}", _delta_badge(delta_value(data, "UA")), _status_text(status_ua(latest["UA"], nama))),
+        ("Glucose", int(latest["Glucose"]), _delta_badge(delta_value(data, "Glucose")), _status_text(status_glucose(latest["Glucose"]))),
+    ]
+    html = '<div class="dhp-grid">'
+    for label, value, delta, status in cards:
+        html += f'<div class="dhp-stat"><div class="dhp-stat-label">{label}</div><div class="dhp-stat-value">{value}</div><div class="dhp-stat-delta">{delta}</div><div class="dhp-stat-status">{status}</div></div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def health_insight(data, nama):
@@ -445,228 +438,122 @@ islamic_deddy = (
     if not islamic_df.empty else pd.DataFrame()
 )
 
-st.title("❤️ DHP-Lifes")
-st.caption("Grow Dashboard")
-st.markdown(f'<span class="dhp-version">{APP_VERSION}</span>', unsafe_allow_html=True)
+st.markdown(
+    f"""
+    <div class="dhp-hero">
+      <h1>❤️ DHP-Lifes</h1>
+      <div class="dhp-subtitle">Grow Dashboard</div>
+      <span class="dhp-version">{APP_VERSION}</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 menu = st.sidebar.radio(
-    "Menu",
+    "DHP-Lifes",
     ["🏠 Home", "❤️ Health Monitoring", "🕌 Islamic Things", "⚙️ Settings"],
 )
 
-
-# HOME
 if menu == "🏠 Home":
-    st.header("Grow Dashboard")
-
-    st.subheader("❤️ Health Monitoring")
-    home_profile = st.radio(
-        "Health profile",
-        ["Deddy", "Istri"],
-        horizontal=True,
-        label_visibility="collapsed",
-    )
+    st.markdown('<div class="dhp-section-title"><span class="dhp-icon">❤️</span>Health Monitoring</div>', unsafe_allow_html=True)
+    home_profile = st.radio("Health profile", ["Deddy", "Istri"], horizontal=True, label_visibility="collapsed")
     home_health = health_df[health_df["Nama"] == home_profile].copy()
+    health_cards(home_health, home_profile)
+    if not home_health.empty:
+        st.caption(f"Data terakhir: {home_health.iloc[-1]['Tanggal'].date()}")
     plot_home_health(home_health)
 
-    st.divider()
-    st.subheader("🕌 Islamic Things")
-    plot_home_islamic(islamic_deddy)
+    st.markdown('<div class="dhp-section-title"><span class="dhp-icon gold">🕌</span>Islamic Things</div>', unsafe_allow_html=True)
+    if not islamic_deddy.empty:
+        latest_i = islamic_deddy.sort_values("Tanggal").iloc[-1]
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.markdown(f'<div class="dhp-section"><div class="small-muted">Istiqamah Score</div><div class="dhp-score">{latest_i["IstiqamahIndex"]:.0f}%</div><div class="small-muted">{istiqamah_status(latest_i["IstiqamahIndex"])}</div></div>', unsafe_allow_html=True)
+        with c2:
+            plot_home_islamic(islamic_deddy)
+    else:
+        st.info("Belum ada data Istiqamah.")
 
-
-# HEALTH
 elif menu == "❤️ Health Monitoring":
-    st.header("❤️ Health Monitoring")
-
-    top1, top2 = st.columns([4, 1])
-    with top1:
-        nama = st.selectbox("Pilih profil", ["Deddy", "Istri"])
-    with top2:
-        st.write("")
-        st.write("")
-        if st.button("🔄 Refresh"):
-            refresh_data()
-
+    st.markdown('<div class="dhp-section-title"><span class="dhp-icon">❤️</span>Health Monitoring</div>', unsafe_allow_html=True)
+    nama = st.radio("Pilih profil", ["Deddy", "Istri"], horizontal=True)
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        refresh_data()
     data = health_df[health_df["Nama"] == nama].copy()
-
     health_cards(data, nama)
 
-    st.divider()
-    st.subheader("📌 Insight")
-    st.info(health_insight(data, nama))
-
-    st.divider()
-    c1, c2 = st.columns(2)
-    with c1:
-        metric = st.radio("Pilih trend", ["Chol", "UA", "Glucose"], horizontal=True)
-    with c2:
-        rentang = st.selectbox("Rentang data", ["Semua", "10 data terakhir", "20 data terakhir"])
-
+    st.markdown("### 📌 Insight")
+    insight_html = health_insight(data, nama).replace("\n", "<br>")
+    st.markdown(f'<div class="dhp-insight">{insight_html}</div>', unsafe_allow_html=True)
+    st.markdown("### 📈 Trend")
+    metric = st.radio("Pilih trend", ["Chol", "UA", "Glucose"], horizontal=True, label_visibility="collapsed")
+    rentang = st.selectbox("Rentang data", ["10 data terakhir", "20 data terakhir", "Semua"])
     plot_data = data.copy()
     if rentang == "10 data terakhir":
         plot_data = plot_data.tail(10)
     elif rentang == "20 data terakhir":
         plot_data = plot_data.tail(20)
-
-    title_map = {
-        "Chol": "Trend Kolesterol",
-        "UA": "Trend Asam Urat",
-        "Glucose": "Trend Glucose",
-    }
+    title_map = {"Chol": "Trend Kolesterol", "UA": "Trend Asam Urat", "Glucose": "Trend Glucose"}
     plot_health_metric(plot_data, metric, title_map[metric], nama)
 
-    st.divider()
     with st.expander("➕ Tambah Data Health", expanded=False):
-        tanggal_health = st.date_input(
-            "Tanggal",
-            value=local_today(),
-            key="health_date",
-        )
-
-        x1, x2, x3 = st.columns(3)
-        with x1:
-            chol = st.number_input("Chol", min_value=0, step=1, value=0)
-            st.caption(status_chol(chol))
-        with x2:
-            ua = st.number_input("UA", min_value=0.0, step=0.1, value=0.0)
-            st.caption(status_ua(ua, nama))
-        with x3:
-            glucose = st.number_input("Glucose", min_value=0, step=1, value=0)
-            st.caption(status_glucose(glucose))
-
-        if st.button("💾 Simpan Data Health"):
+        tanggal_health = st.date_input("Tanggal", value=local_today(), key="health_date")
+        chol = st.number_input("Chol", min_value=0, step=1, value=0)
+        st.caption(status_chol(chol))
+        ua = st.number_input("UA", min_value=0.0, step=0.1, value=0.0)
+        st.caption(status_ua(ua, nama))
+        glucose = st.number_input("Glucose", min_value=0, step=1, value=0)
+        st.caption(status_glucose(glucose))
+        if st.button("💾 Simpan Data Health", type="primary", use_container_width=True):
             if chol == 0 and ua == 0 and glucose == 0:
                 st.error("Data masih kosong.")
             else:
                 ok, message = save_health(nama, tanggal_health, chol, ua, glucose)
-                if ok:
-                    st.success(message)
-                else:
-                    st.error(message)
+                st.success(message) if ok else st.error(message)
+    with st.expander("📋 Riwayat Health", expanded=False):
+        st.dataframe(data.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
 
-    st.divider()
-    st.subheader("📋 Riwayat")
-    st.dataframe(
-        data.sort_values("Tanggal", ascending=False),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-
-# ISLAMIC
 elif menu == "🕌 Islamic Things":
-    st.header("🕌 Islamic Things")
+    st.markdown('<div class="dhp-section-title"><span class="dhp-icon gold">🕌</span>Islamic Things</div>', unsafe_allow_html=True)
     st.caption("Your Journey Companion")
-
-    top1, top2 = st.columns([4, 1])
-    with top1:
-        tanggal_islamic = st.date_input(
-            "Tanggal",
-            value=local_today(),
-            key="islamic_date",
-        )
-    with top2:
-        st.write("")
-        st.write("")
-        if st.button("🔄 Refresh", key="refresh_islamic"):
-            refresh_data()
-
+    tanggal_islamic = st.date_input("Tanggal", value=local_today(), key="islamic_date")
+    if st.button("🔄 Refresh Data", key="refresh_islamic", use_container_width=True):
+        refresh_data()
     existing = existing_islamic_for_date(islamic_deddy, tanggal_islamic)
     is_revision = existing is not None
-
     if is_revision:
         st.info("✏️ Data tanggal ini sudah ada. Simpan akan merevisi data yang sama.")
-
     checklist = {}
     cols = st.columns(2)
-
     for index, item in enumerate(ISLAMIC_ITEMS):
         default = bool(existing[item]) if is_revision else False
         with cols[index % 2]:
-            checklist[item] = st.checkbox(
-                ISLAMIC_LABELS[item],
-                value=default,
-                key=f"{item}_{tanggal_islamic}",
-            )
-
-    default_note = (
-        str(existing["Catatan"])
-        if is_revision and pd.notna(existing["Catatan"])
-        else ""
-    )
-    catatan = st.text_area(
-        "Catatan",
-        value=default_note,
-        placeholder="Catatan singkat jika ada...",
-    )
-
+            checklist[item] = st.checkbox(ISLAMIC_LABELS[item], value=default, key=f"{item}_{tanggal_islamic}")
+    default_note = str(existing["Catatan"]) if is_revision and pd.notna(existing["Catatan"]) else ""
+    catatan = st.text_area("Catatan", value=default_note, placeholder="Catatan singkat jika ada...")
     done = sum(1 for value in checklist.values() if value)
     istiqamah_index = round(done / len(ISLAMIC_ITEMS) * 100)
-
-    st.divider()
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     c1.metric("Done", f"{done} / {len(ISLAMIC_ITEMS)}")
-    c2.metric("🕌 Istiqamah Index", f"{istiqamah_index}%")
-    c3.write(istiqamah_status(istiqamah_index))
-
-    st.divider()
-    st.subheader("🤲 Muhasabah")
-    st.info(
-        "Dashboard ini bukan untuk dinilai siapa pun. "
-        "Ia hanya saksi perjalananmu menuju Allah. "
-        "Sudahkah catatan hari ini benar?"
-    )
-    confirmed = st.checkbox(
-        "Saya sudah memeriksa kembali catatan hari ini.",
-        key=f"confirm_{tanggal_islamic}",
-    )
-
+    c2.metric("Istiqamah Index", f"{istiqamah_index}%")
+    st.markdown(f'<div class="dhp-callout"><b>{istiqamah_status(istiqamah_index)}</b><br><span class="small-muted">Dashboard ini hanya saksi perjalananmu menuju Allah.</span></div>', unsafe_allow_html=True)
+    confirmed = st.checkbox("Saya sudah memeriksa kembali catatan hari ini.", key=f"confirm_{tanggal_islamic}")
     button_text = "✏️ Revisi Hari Ini" if is_revision else "💾 Simpan Hari Ini"
-    if st.button(button_text, disabled=not confirmed):
+    if st.button(button_text, disabled=not confirmed, type="primary", use_container_width=True):
         ok, message = save_islamic(tanggal_islamic, checklist, catatan)
-        if ok:
-            st.success(message)
-        else:
-            st.error(message)
-
-    st.divider()
-    st.subheader("📈 Trend Istiqamah")
+        st.success(message) if ok else st.error(message)
+    st.markdown("### 📈 Trend Istiqamah")
     plot_istiqamah(islamic_deddy)
+    with st.expander("📋 Riwayat Islamic", expanded=False):
+        if islamic_deddy.empty:
+            st.info("Belum ada riwayat Islamic.")
+        else:
+            st.dataframe(islamic_deddy.sort_values("Tanggal", ascending=False), use_container_width=True, hide_index=True)
 
-    st.divider()
-    st.subheader("📋 Riwayat")
-    if islamic_deddy.empty:
-        st.info("Belum ada riwayat Islamic.")
-    else:
-        st.dataframe(
-            islamic_deddy.sort_values("Tanggal", ascending=False),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-
-# SETTINGS
 elif menu == "⚙️ Settings":
-    st.header("⚙️ Settings")
-
-    st.subheader("System")
-    st.write(f"Version: **{APP_VERSION}**")
-    st.write(f"Device timezone: **{DEVICE_TIMEZONE}**")
-    st.write(f"Local date: **{local_today()}**")
-    st.write("Day change: **00:00 local time**")
-
-    st.divider()
-    st.subheader("Backend")
-    st.write("Health API: **Separate endpoint**")
-    st.write("Islamic API: **Separate endpoint — UPSERT**")
-    st.write("Database: **Google Sheet**")
-
-    st.divider()
-    st.subheader("Maintenance")
-    if st.button("🔄 Clear cache & refresh"):
+    st.markdown('<div class="dhp-section-title"><span class="dhp-icon">⚙️</span>Settings</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="dhp-section"><b>System</b><br><span class="small-muted">Version: {APP_VERSION}<br>Device timezone: {DEVICE_TIMEZONE}<br>Local date: {local_today()}<br>Day change: 00:00 local time</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="dhp-section"><b>Backend</b><br><span class="small-muted">Health API: Separate endpoint<br>Islamic API: Separate endpoint — UPSERT<br>Database: Google Sheet</span></div>', unsafe_allow_html=True)
+    if st.button("🔄 Clear cache & refresh", use_container_width=True):
         refresh_data()
-
-    st.divider()
-    st.subheader("About")
-    st.write("**DHP-Lifes**")
-    st.caption("2026 Grow Dashboard — Healthy Body. Peaceful Soul")
+    st.caption("DHP-Lifes · 2026 Grow Dashboard — Healthy Body. Peaceful Soul")
